@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>슈퍼마켓 러너</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: #f5f5f5;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #f0f0f0 100%);
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            z-index: 1000;
+        }
+
+        #gameOver h2 {
+            color: #ff6b6b;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        #gameOver p {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        #restartBtn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #restartBtn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameOver">
+        <h2>게임 오버!</h2>
+        <p>점수: <span id="finalScore">0</span></p>
+        <button id="restartBtn">다시 시작</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const finalScoreSpan = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let gameState = {
+            health: 100,
+            maxHealth: 100,
+            score: 0,
+            speed: 2,
+            isGameOver: false,
+            childY: canvas.height * 0.7
+        };
+
+        const items = [
+            { emoji: '🍎', name: '사과' },
+            { emoji: '🍌', name: '바나나' },
+            { emoji: '🥛', name: '우유' },
+            { emoji: '🍞', name: '빵' },
+            { emoji: '🥕', name: '당근' },
+            { emoji: '🍕', name: '피자' },
+            { emoji: '🍔', name: '햄버거' },
+            { emoji: '🧃', name: '주스' }
+        ];
+
+        let currentPair = {
+            left: null,
+            right: null,
+            y: -100
+        };
+
+        let cart = [];
+        let shelves = [];
+        let shelfSpeed = 2;
+
+        function init() {
+            gameState = {
+                health: 100,
+                maxHealth: 100,
+                score: 0,
+                speed: 2,
+                isGameOver: false,
+                childY: canvas.height * 0.7
+            };
+            cart = [];
+            shelves = [];
+            shelfSpeed = 2;
+            generateNewPair();
+            createShelves();
+            gameOverDiv.style.display = 'none';
+        }
+
+        function createShelves() {
+            for (let i = 0; i < 10; i++) {
+                shelves.push({
+                    y: i * 150 - 200,
+                    height: 120
+                });
+            }
+        }
+
+        function generateNewPair() {
+            const leftItem = items[Math.floor(Math.random() * items.length)];
+            let rightItem = items[Math.floor(Math.random() * items.length)];
+            while (rightItem.emoji === leftItem.emoji) {
+                rightItem = items[Math.floor(Math.random() * items.length)];
+            }
+
+            currentPair = {
+                left: { ...leftItem, x: canvas.width * 0.2 },
+                right: { ...rightItem, x: canvas.width * 0.8 },
+                y: 100
+            };
+        }
+
+        function drawChild() {
+            const x = canvas.width / 2;
+            const y = gameState.childY;
+
+            // 아이 머리
+            ctx.fillStyle = '#ffdbac';
+            ctx.beginPath();
+            ctx.arc(x, y - 40, 25, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 몸
+            ctx.fillStyle = '#4a90e2';
+            ctx.fillRect(x - 20, y - 20, 40, 50);
+
+            // 팔
+            ctx.strokeStyle = '#ffdbac';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(x - 20, y - 10);
+            ctx.lineTo(x - 35, y + 10);
+            ctx.moveTo(x + 20, y - 10);
+            ctx.lineTo(x + 35, y + 10);
+            ctx.stroke();
+
+            // 다리
+            ctx.fillStyle = '#2c5aa0';
+            ctx.fillRect(x - 15, y + 30, 12, 30);
+            ctx.fillRect(x + 3, y + 30, 12, 30);
+
+            // 장바구니
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(x - 30, y + 40, 60, 35);
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x - 30, y + 40, 60, 35);
+
+            // 장바구니 안 아이템들
+            cart.forEach((item, index) => {
+                ctx.font = '20px Arial';
+                ctx.fillText(item.emoji, x - 20 + (index % 3) * 15, y + 60 + Math.floor(index / 3) * 15);
+            });
+        }
+
+        function drawShelves() {
+            shelves.forEach(shelf => {
+                // 왼쪽 선반
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(20, shelf.y, canvas.width * 0.15, shelf.height);
+                ctx.fillStyle = '#D2691E';
+                ctx.fillRect(20, shelf.y + 10, canvas.width * 0.15, 20);
+
+                // 오른쪽 선반
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(canvas.width * 0.85 - 20, shelf.y, canvas.width * 0.15, shelf.height);
+                ctx.fillStyle = '#D2691E';
+                ctx.fillRect(canvas.width * 0.85 - 20, shelf.y + 10, canvas.width * 0.15, 20);
+            });
+        }
+
+        function updateShelves() {
+            shelves.forEach(shelf => {
+                shelf.y += shelfSpeed;
+            });
+
+            if (shelves[0].y > canvas.height) {
+                shelves.shift();
+                shelves.push({
+                    y: shelves[shelves.length - 1].y - 150,
+                    height: 120
+                });
+            }
+        }
+
+        function drawItems() {
+            if (currentPair.left && currentPair.right) {
+                ctx.font = '60px Arial';
+                ctx.textAlign = 'center';
+                
+                // 왼쪽 아이템
+                ctx.fillText(currentPair.left.emoji, currentPair.left.x, currentPair.y);
+                
+                // 오른쪽 아이템
+                ctx.fillText(currentPair.right.emoji, currentPair.right.x, currentPair.y);
+            }
+        }
+
+        function drawHealthBar() {
+            const barWidth = canvas.width * 0.8;
+            const barHeight = 30;
+            const x = canvas.width * 0.1;
+            const y = 20;
+
+            // 배경
+            ctx.fillStyle = '#ddd';
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            // 체력
+            const healthWidth = (gameState.health / gameState.maxHealth) * barWidth;
+            const gradient = ctx.createLinearGradient(x, 0, x + healthWidth, 0);
+            if (gameState.health > 60) {
+                gradient.addColorStop(0, '#4CAF50');
+                gradient.addColorStop(1, '#8BC34A');
+            } else if (gameState.health > 30) {
+                gradient.addColorStop(0, '#FFC107');
+                gradient.addColorStop(1, '#FFD54F');
+            } else {
+                gradient.addColorStop(0, '#f44336');
+                gradient.addColorStop(1, '#e57373');
+            }
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, healthWidth, barHeight);
+
+            // 테두리
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, barWidth, barHeight);
+
+            // 체력 텍스트
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`체력: ${Math.ceil(gameState.health)}`, canvas.width / 2, y + 20);
+        }
+
+        function drawScore() {
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`점수: ${gameState.score}`, canvas.width - 20, 70);
+        }
+
+        function updateGame() {
+            if (gameState.isGameOver) return;
+
+            // 체력 감소
+            gameState.health -= 0.15;
+
+            // 아이템 이동
+            if (currentPair.left && currentPair.right) {
+                currentPair.y += shelfSpeed;
+
+                // 화면 밖으로 나가면 새 아이템 생성
+                if (currentPair.y > canvas.height + 100) {
+                    generateNewPair();
+                }
+            }
+
+            // 선반 업데이트
+            updateShelves();
+
+            // 게임 오버 체크
+            if (gameState.health <= 0) {
+                gameState.isGameOver = true;
+                gameOverDiv.style.display = 'block';
+                finalScoreSpan.textContent = gameState.score;
+            }
+
+            // 속도 증가
+            if (gameState.score % 5 === 0 && gameState.score > 0) {
+                shelfSpeed = Math.min(5, 2 + gameState.score * 0.02);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 배경
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#f0f0f0');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 바닥
+            ctx.fillStyle = '#999';
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.fillRect(i, canvas.height - 20, 30, 20);
+            }
+
+            drawShelves();
+            drawItems();
+            drawChild();
+            drawHealthBar();
+            drawScore();
+        }
+
+        function handleClick(e) {
+            if (gameState.isGameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+
+            if (currentPair.left && currentPair.right) {
+                const midPoint = canvas.width / 2;
+
+                if (x < midPoint) {
+                    // 왼쪽 아이템 선택
+                    cart.push(currentPair.left);
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + 8);
+                } else {
+                    // 오른쪽 아이템 선택
+                    cart.push(currentPair.right);
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + 8);
+                }
+
+                gameState.score++;
+                generateNewPair();
+            }
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleClick(touch);
+        }
+
+        function gameLoop() {
+            updateGame();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('touchstart', handleTouch);
+        restartBtn.addEventListener('click', init);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gameState.childY = canvas.height * 0.7;
+        });
+
+        init();
+        gameLoop();
+    </script>
+</body>
+</html>
