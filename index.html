@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Useless Store Run</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="hud">
+        <div class="hud-left">
+          <div class="hud-item"><span>점수</span><strong id="score">0</strong></div>
+          <div class="hud-item"><span>콤보</span><strong id="combo">0</strong></div>
+          <div class="hud-item"><span>카트</span><strong id="cartTier">나무</strong></div>
+          <div class="hud-item"><span>적재</span><strong id="capacity">0/0</strong></div>
+        </div>
+        <div class="hud-right">
+          <div class="gap-bar">
+            <div class="gap-fill" id="gapFill"></div>
+          </div>
+          <div class="gap-label">엄마와 거리: <strong id="gapText">5</strong></div>
+        </div>
+      </header>
+
+      <div id="game" class="danger-0">
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <div id="speech" class="hidden">
+          <div class="bubble">거기 서! 계산하고 가! 💢</div>
+        </div>
+        <div id="dangerOverlay"></div>
+        <div id="startScreen" class="overlay visible">
+          <h1>마트 질주</h1>
+          <p>엄마로부터 도망치며 비싼 물건을 카트에 담자!</p>
+          <ul class="instructions">
+            <li>이동: ← → (또는 A / D)</li>
+            <li>아이템에 겹치면 자동으로 담깁니다</li>
+            <li>장애물에 부딪히면 엄마가 가까워집니다</li>
+            <li>콤보로 속도가 올라가고 피버가 발동해요</li>
+          </ul>
+          <button id="startBtn">시작</button>
+          <button id="resetTierBtn" class="ghost">카트 리셋</button>
+        </div>
+
+        <div id="gameOver" class="overlay hidden">
+          <h2>잡혔다! 🧸</h2>
+          <p>점수: <strong id="finalScore">0</strong></p>
+          <div class="actions">
+            <button id="retryBtn">다시하기</button>
+            <button id="upgradeBtn" class="accent">카트 업그레이드</button>
+          </div>
+          <p class="small">업그레이드는 시각적 + 적재량 증가</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="sprites.js"></script>
+    <script src="main.js"></script>
+  </body>
+  </html>
