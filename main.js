@@ -13,6 +13,7 @@
   const START_GAP = 5; // 처음 시작 5칸 차이
   const MOVE_COOLDOWN = 120; // ms between lane moves
 
+  
   const TIERS = [
     { key: 'wood', label: '나무', capacity: 5 },
     { key: 'iron', label: '철', capacity: 8 },
