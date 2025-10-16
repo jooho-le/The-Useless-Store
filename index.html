@@ -26,24 +26,22 @@
       <div id="game" class="danger-0">
         <canvas id="canvas" width="800" height="600"></canvas>
         <div id="speech" class="hidden">
-          <div class="bubble">거기 서! 계산하고 가! 💢</div>
+          <div class="bubble">거기 서! 그거 당장 빼! 💢</div>
         </div>
         <div id="dangerOverlay"></div>
         <div id="startScreen" class="overlay visible">
           <h1>마트 질주</h1>
           <p>엄마로부터 도망치며 비싼 물건을 카트에 담자!</p>
           <ul class="instructions">
-            <li>이동: ← → (또는 A / D)</li>
-            <li>아이템에 겹치면 자동으로 담깁니다</li>
-            <li>장애물에 부딪히면 엄마가 가까워집니다</li>
-            <li>콤보로 속도가 올라가고 피버가 발동해요</li>
+            <li>물건을 눌러 카트에 담으세요</li>
+            <li>엄마에게 잡히지 마세요</li>
           </ul>
           <button id="startBtn">시작</button>
           <button id="resetTierBtn" class="ghost">카트 리셋</button>
         </div>
 
         <div id="gameOver" class="overlay hidden">
-          <h2>잡혔다! 🧸</h2>
+          <h2>잡혔다!</h2>
           <p>점수: <strong id="finalScore">0</strong></p>
           <div class="actions">
             <button id="retryBtn">다시하기</button>
