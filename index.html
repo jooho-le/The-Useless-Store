@@ -13,13 +13,19 @@
           <div class="hud-item"><span>점수</span><strong id="score">0</strong></div>
           <div class="hud-item"><span>콤보</span><strong id="combo">0</strong></div>
           <div class="hud-item"><span>카트</span><strong id="cartTier">나무</strong></div>
-          <div class="hud-item"><span>적재</span><strong id="capacity">0/0</strong></div>
+          <div class="hud-item"><span>적재</span><strong id="capacity">0</strong></div>
         </div>
         <div class="hud-right">
           <div class="gap-bar">
             <div class="gap-fill" id="gapFill"></div>
           </div>
           <div class="gap-label">엄마와 거리: <strong id="gapText">5</strong></div>
+          <div class="auth-controls">
+            <span id="userEmail" class="muted"></span>
+            <button id="loginBtn" class="small">로그인</button>
+            <button id="logoutBtn" class="small hidden">로그아웃</button>
+            <button id="myScoreBtn" class="small">내 점수</button>
+          </div>
         </div>
       </header>
 
@@ -49,10 +55,38 @@
           </div>
           <p class="small">업그레이드는 시각적 + 적재량 증가</p>
         </div>
+
+        <div id="authModal" class="overlay hidden">
+          <h2>로그인 / 회원가입</h2>
+          <div class="form">
+            <input id="authName" placeholder="이름 (선택)" />
+            <input id="authEmail" placeholder="이메일" />
+            <input id="authPassword" placeholder="비밀번호" type="password" />
+            <div class="actions">
+              <button id="doLogin" class="accent">로그인</button>
+              <button id="doSignup">회원가입</button>
+              <button id="closeAuth" class="ghost">닫기</button>
+            </div>
+            <div id="authMsg" class="small muted"></div>
+          </div>
+        </div>
+
+        <div id="myScores" class="overlay hidden">
+          <h2>내 점수</h2>
+          <p>최고점: <strong id="bestScore">0</strong></p>
+          <ul id="recentScores" class="scores"></ul>
+          <div class="actions">
+            <button id="closeScores" class="ghost">닫기</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <script src="sprites.js"></script>
+    <script>
+      // Point frontend API calls to backend server
+      window.API_BASE = 'http://localhost:8080/api';
+    </script>
     <script src="main.js"></script>
   </body>
   </html>

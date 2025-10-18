@@ -43,11 +43,66 @@
   const finalScoreEl = document.getElementById('finalScore');
   const speech = document.getElementById('speech');
   const dangerOverlay = document.getElementById('dangerOverlay');
+  // Auth/UI elements
+  const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const userEmailEl = document.getElementById('userEmail');
+  const myScoreBtn = document.getElementById('myScoreBtn');
+  const authModal = document.getElementById('authModal');
+  const authName = document.getElementById('authName');
+  const authEmail = document.getElementById('authEmail');
+  const authPassword = document.getElementById('authPassword');
+  const doLogin = document.getElementById('doLogin');
+  const doSignup = document.getElementById('doSignup');
+  const closeAuth = document.getElementById('closeAuth');
+  const authMsg = document.getElementById('authMsg');
+  const myScores = document.getElementById('myScores');
+  const bestScoreEl = document.getElementById('bestScore');
+  const recentScoresEl = document.getElementById('recentScores');
+  const closeScores = document.getElementById('closeScores');
 
   // Helpers
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a,b,t) => a + (b-a)*t;
   const easeOutCubic = (t)=>1 - Math.pow(1-t,3);
+
+  // API helpers
+  const API_BASE = (window.API_BASE || '').trim() || '/api';
+  const tokenKey = 'authToken';
+  function getToken(){ return localStorage.getItem(tokenKey) || null; }
+  function setToken(t){ if (t) localStorage.setItem(tokenKey, t); }
+  function clearToken(){ localStorage.removeItem(tokenKey); }
+  async function api(path, opts={}){
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers||{});
+    const t = getToken();
+    if (t) headers['Authorization'] = `Bearer ${t}`;
+    const res = await fetch(`${API_BASE}${path}`, Object.assign({}, opts, { headers }));
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok) throw Object.assign(new Error('api_error'), { status: res.status, data });
+    return data;
+  }
+
+  async function refreshUserUI(){
+    const t = getToken();
+    if (!t) {
+      userEmailEl.textContent = '';
+      loginBtn.classList.remove('hidden');
+      logoutBtn.classList.add('hidden');
+      return;
+    }
+    try {
+      const me = await api('/auth/me').catch(() => null);
+      const email = me && me.user ? me.user.email : '';
+      userEmailEl.textContent = email;
+      loginBtn.classList.add('hidden');
+      logoutBtn.classList.remove('hidden');
+    } catch (_) {
+      clearToken();
+      userEmailEl.textContent = '';
+      loginBtn.classList.remove('hidden');
+      logoutBtn.classList.add('hidden');
+    }
+  }
 
   // Cart tier persistence
   function getTierIndex() {
@@ -261,13 +316,15 @@
           tr.type.draw(ctx, rect, scale);
           if (p < 1) remain.push(tr);
         } else if (tr.kind === 'exit') {
-          // Follow the same shelf/camera path: recompute rect from current z
+          // Follow the shelf/camera path (world-space). Stop once behind camera.
           const z = tr.shelfZ - state.cameraZ;
+          if (z <= 0) {
+            continue; // shelf has passed the camera; drop this transient
+          }
           const dummy = { side: tr.side, level: tr.level };
           const rect = computeItemRect(z, dummy);
           const { scale } = computeShelfGeom(z);
           tr.type.draw(ctx, rect, scale);
-          // keep until off the bottom of the screen
           if (rect.y <= HEIGHT + 80) {
             remain.push(tr);
           }
@@ -303,6 +360,11 @@
     state.running = false; state.over = true;
     finalScoreEl.textContent = String(state.score);
     gameOver.classList.remove('hidden');
+    // submit score if logged in
+    const t = getToken();
+    if (t) {
+      api('/scores', { method: 'POST', body: JSON.stringify({ score: state.score }) }).catch(()=>{});
+    }
   }
 
   function retry(){
@@ -322,6 +384,45 @@
   retryBtn.addEventListener('click', retry);
   upgradeBtn.addEventListener('click', upgradeCart);
   resetTierBtn.addEventListener('click', () => { setTierIndex(0); initState(); });
+  // Auth controls
+  loginBtn && loginBtn.addEventListener('click', () => { authModal.classList.remove('hidden'); authMsg.textContent=''; });
+  closeAuth && closeAuth.addEventListener('click', () => { authModal.classList.add('hidden'); });
+  logoutBtn && logoutBtn.addEventListener('click', () => { clearToken(); refreshUserUI(); });
+  doLogin && doLogin.addEventListener('click', async () => {
+    authMsg.textContent = '';
+    try {
+      const out = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email: authEmail.value, password: authPassword.value }) });
+      setToken(out.token);
+      authModal.classList.add('hidden');
+      refreshUserUI();
+    } catch (e) { authMsg.textContent = e?.data?.error || '로그인 실패'; }
+  });
+  doSignup && doSignup.addEventListener('click', async () => {
+    authMsg.textContent = '';
+    try {
+      const out = await api('/auth/signup', { method: 'POST', body: JSON.stringify({ name: authName.value, email: authEmail.value, password: authPassword.value }) });
+      setToken(out.token);
+      authModal.classList.add('hidden');
+      refreshUserUI();
+    } catch (e) { authMsg.textContent = e?.data?.error || '회원가입 실패'; }
+  });
+  myScoreBtn && myScoreBtn.addEventListener('click', async () => {
+    const t = getToken();
+    if (!t) { authModal.classList.remove('hidden'); return; }
+    try {
+      const out = await api('/scores/my');
+      bestScoreEl.textContent = String(out.best || 0);
+      recentScoresEl.innerHTML = '';
+      for (const row of out.recent || []) {
+        const li = document.createElement('li');
+        const dt = new Date(row.created_at);
+        li.innerHTML = `<span>${dt.toLocaleString()}</span><strong>${row.score}</strong>`;
+        recentScoresEl.appendChild(li);
+      }
+      myScores.classList.remove('hidden');
+    } catch (_) { /* ignore */ }
+  });
+  closeScores && closeScores.addEventListener('click', () => { myScores.classList.add('hidden'); });
 
   // Click-to-pick and advance
   canvas.addEventListener('click', (e) => {
@@ -425,4 +526,5 @@
 
   // Bootstrap
   initState();
+  refreshUserUI();
 })();
