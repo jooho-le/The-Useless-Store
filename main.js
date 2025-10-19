@@ -170,7 +170,6 @@
       combo: 0,
       speedModifier: 1,
       usedCapacity: 0,
-      tierIdx,
       capacity: tier.capacity,
       momGap: START_DISTANCE,
       momSpeed: MOM_BASE_SPEED
@@ -337,14 +336,13 @@
   }
 
   function upgradeCart(){
-    next = Math.min(state.tierIdx + 1, TIERS.length - 1);
+    next = Math.min(getTierIndex() + 1, TIERS.length - 1);
 
-    if (next !== state.tierIdx && getMoney() >= TIERS.nextTier.cost) {
-      setMoney(getMoney() - TIERS.nextTier.cost)
+    if (next !== getTierIndex() && getMoney() >= TIERS[next].cost) {
+      setMoney(getMoney() - TIERS[next].cost)
       setTierIndex(next);
+      initState();
     }
-
-    initState();
   }
 
   // Buttons
