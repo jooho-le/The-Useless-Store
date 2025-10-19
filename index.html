@@ -84,8 +84,9 @@
 
     <script src="sprites.js"></script>
     <script>
-      // Point frontend API calls to backend server
-      window.API_BASE = 'http://localhost:8080/api';
+      // 백엔드와 같은 호스트/포트에서 서빙하므로 상대 경로 사용
+      // (localhost/127.0.0.1/내부 IP 어디서 열어도 동작)
+      window.API_BASE = '/api';
     </script>
     <script src="main.js"></script>
   </body>
