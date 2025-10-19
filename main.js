@@ -10,7 +10,6 @@
   const MIN_DISTANCE = 0;
   const WARNING_DISTANCE = 2;
 
-
   // Shelf/3D config
   const LEVELS_PER_SIDE = 3;    // left: 3 levels, right: 3 levels (total 6 slots)
   const SHELF_GAP = 10;          // distance between bays (world units)
@@ -19,10 +18,10 @@
 
   // Cart tier/capacity (UI uses these)
   const TIERS = [
-    { key: 'wood',   label: 'WOOD',   capacity: 1 },
-    { key: 'iron',   label: 'IRON',   capacity: 2 },
-    { key: 'silver', label: 'SILVER', capacity: 3 },
-    { key: 'gold',   label: 'GOLD',   capacity: 4 },
+    { key: 'wood',   label: 'WOOD',   capacity: 1, cost: 0  },
+    { key: 'iron',   label: 'IRON',   capacity: 2, cost: 100  },
+    { key: 'silver', label: 'SILVER', capacity: 3, cost: 300  },
+    { key: 'gold',   label: 'GOLD',   capacity: 4, cost: 1000 },
   ];
 
   // DOM elements
@@ -31,7 +30,7 @@
   const scoreEl = document.getElementById('score');
   const comboEl = document.getElementById('combo');
   const cartTierEl = document.getElementById('cartTier');
-  const capacityEl = document.getElementById('capacity');
+  const moneyEl = document.getElementById('money');
   const gapFillEl = document.getElementById('gapFill');
   const gapTextEl = document.getElementById('gapText');
   const startScreen = document.getElementById('startScreen');
@@ -46,16 +45,30 @@
 
   // Helpers
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const lerp = (a,b,t) => a + (b-a)*t;
+  const lerp = (a,b,t) => a + (b-a) * t;
   const easeOutCubic = (t)=>1 - Math.pow(1-t,3);
 
-  // Cart tier persistence
   function getTierIndex() {
     const idx = parseInt(localStorage.getItem('cartTierIdx') || '0', 10);
     return clamp(idx, 0, TIERS.length - 1);
   }
+
   function setTierIndex(idx) {
     localStorage.setItem('cartTierIdx', String(clamp(idx, 0, TIERS.length - 1)));
+  }
+  
+  function getMoney() {
+    const money = parseInt(localStorage.getItem('money') || '0', 0);
+    return clamp(money, 0, money);
+  }
+  
+  function setMoney(money) {
+    localStorage.setItem('money', String(clamp(money, 0, money)));
+    updateMoney();
+  }
+
+  function updateMoney() {
+    moneyEl.textContent = `${getMoney()}`;
   }
 
   // Random pick helper
@@ -139,6 +152,7 @@
     const tierIdx = getTierIndex();
     const tier = TIERS[tierIdx];
     cartTierEl.textContent = tier.label;
+    updateMoney();
     canvas.classList.remove('tier-wood','tier-iron','tier-silver','tier-gold');
     canvas.classList.add(`tier-${tier.key}`);
 
@@ -158,7 +172,8 @@
       usedCapacity: 0,
       tierIdx,
       capacity: tier.capacity,
-      momGap: START_DISTANCE
+      momGap: START_DISTANCE,
+      momSpeed: MOM_BASE_SPEED
     };
 
     // Seed shelves
@@ -171,8 +186,6 @@
   function updateHUD() {
     scoreEl.textContent = String(state.score);
     comboEl.textContent = String(state.combo);
-    // Show only cart capacity (size limit)
-    capacityEl.textContent = `${state.capacity}`;
     const maxGap = 12; // for bar scaling only
     const p = clamp(state.momGap / maxGap, 0, 1);
     gapFillEl.style.width = `${Math.round(p * 100)}%`;
@@ -194,6 +207,18 @@
       items.push(new Item({ side: 'L', level, type: randomItemType() }));
       items.push(new Item({ side: 'R', level, type: randomItemType() }));
     }
+
+    // Ensure at least one item is pickable with current capacity
+    // "Valid" here means volume <= current cart capacity
+    const hasValid = items.some(it => (it.type.volume <= state.capacity));
+    if (!hasValid) {
+      const validTypes = Object.values(ITEM_TYPES).filter(t => t.volume <= state.capacity);
+      if (validTypes.length > 0) {
+        const idx = Math.floor(Math.random() * items.length);
+        items[idx].type = pick(validTypes);
+      }
+    }
+
     return { z: i * SHELF_GAP, items };
   }
 
@@ -205,7 +230,7 @@
 
   function update(dtMs){
     const dt = dtMs / 1000;
-    state.momGap -= MOM_BASE_SPEED * dt;
+    state.momGap -= state.momSpeed * dt;
     state.momGap = Math.max(MIN_DISTANCE - 0.0001, state.momGap);
     updateHUD();
     if (state.momGap <= MIN_DISTANCE) endGame();
@@ -302,6 +327,7 @@
   function endGame(){
     state.running = false; state.over = true;
     finalScoreEl.textContent = String(state.score);
+    setMoney(getMoney() + state.score / 10)
     gameOver.classList.remove('hidden');
   }
 
@@ -311,10 +337,14 @@
   }
 
   function upgradeCart(){
-    const next = Math.min(state.tierIdx + 1, TIERS.length - 1);
-    if (next !== state.tierIdx) setTierIndex(next);
+    next = Math.min(state.tierIdx + 1, TIERS.length - 1);
+
+    if (next !== state.tierIdx && getMoney() >= TIERS.nextTier.cost) {
+      setMoney(getMoney() - TIERS.nextTier.cost)
+      setTierIndex(next);
+    }
+
     initState();
-    startGame();
   }
 
   // Buttons
@@ -399,6 +429,7 @@
       if (it.collected) continue;
       const r = computeItemRect(z, it);
       if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+        state.momSpeed += 0.0005
         return it;
       }
     }
@@ -407,7 +438,7 @@
 
   function tweenToNextShelf(){
     const startZ = state.cameraZ;
-    const endZ = (state.shelfIndex+1) * SHELF_GAP;
+    const endZ = (state.shelfIndex + 1) * SHELF_GAP;
     const t0 = performance.now();
     function step(t){
       if (!state.running) return;
