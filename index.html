@@ -17,6 +17,7 @@
         </div>
         <div class="hud-right">
           <div class="gap-label">엄마와 거리: <strong id="gapText">5</strong></div>
+          <div class="timer-label hidden">남은 시간: <strong id="timerText">60</strong>s</div>
           <div class="auth-controls">
             <span id="userEmail" class="muted"></span>
             <button id="loginBtn" class="small">로그인</button>
@@ -61,7 +62,10 @@
             <li>물건을 눌러 카트에 담으세요</li>
             <li>엄마에게 잡히지 마세요</li>
           </ul>
-          <button id="startBtn">시작</button>
+          <div class="actions" style="gap: 8px; display: flex; flex-wrap: wrap; justify-content: center;">
+            <button id="startMomBtn" class="accent">시작: 엄마의 분노</button>
+            <button id="startScoreBtn">시작: 점수제</button>
+          </div>
           <button id="resetTierBtn" class="ghost">카트 리셋</button>
         </div>
 
@@ -98,6 +102,17 @@
             <button id="closeScores" class="ghost">닫기</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 점수제: 메모지 오버레이 -->
+    <div id="memoModal" class="overlay hidden">
+      <h2>메모지</h2>
+      <p class="small">아래 적힌 상품만 담으세요. 곧 시작합니다!</p>
+      <ul id="memoList" class="scores"></ul>
+      <p>시작까지 <strong id="memoCountdown">10</strong>초</p>
+      <div class="actions">
+        <button id="skipMemoBtn" class="ghost">바로 시작</button>
       </div>
     </div>
 
