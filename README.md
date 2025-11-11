@@ -15,19 +15,20 @@ Useless Store Run (마트 질주)
 - 아이템에 겹치면 자동으로 담깁니다
 
 실행 방법
-1) 파일을 직접 열기
-   - `index.html`을 더블클릭하여 브라우저에서 엽니다.
-   - 대부분의 브라우저에서 동작합니다. 로컬스토리지 사용이 제한되는 브라우저/설정에서는 업그레이드 저장이 안 될 수 있습니다.
+1) 프런트(루트 기준)
+   - 모드별 HTML을 직접 열기: `mom.html`(엄마의 분노), `score.html`(점수제)
+   - 또는 간단한 로컬 서버(권장): `python3 -m http.server 8000` 후 `http://localhost:8000/mom.html` 또는 `/score.html`
 
-2) 간단한 로컬 서버로 실행(권장)
-   - Python이 있다면 저장소 루트에서 다음을 실행하고, 브라우저에서 http://localhost:8000 접속:
-     - Python 3: `python3 -m http.server 8000`
-     - Python 2: `python -m SimpleHTTPServer 8000`
-
-파일 구조
-- `index.html` — 캔버스 및 HUD/오버레이 UI
-- `style.css` — 레이아웃, 경고 오버레이(붉은 테두리), 말풍선 등 스타일
-- `main.js` — 게임 루프, 스폰/충돌/콤보/피버/업그레이드 로직
+파일 구조(정리 완료)
+- 프런트
+  - `mom.html` / `score.html` — 모드별 진입 HTML
+  - `index.html` — 통합 시작(모드 선택 포함) 페이지
+  - `main.js` — 공통 엔진(렌더/전진/입력)
+  - `modes/mom_mode.js` — 엄마의 분노 전용 로직(HUD/진행/채점)
+  - `modes/score_mode.js` — 점수제 전용 로직(메모/타이머/채점)
+  - `style.css`, `sprites.js`, `assets/`
+- 백엔드: `backend_sqlalchemy/`
+  
 
 신규 모드: 점수제
 - 홈 화면에서 모드를 선택할 수 있습니다.
@@ -40,3 +41,6 @@ Useless Store Run (마트 질주)
 - 아이템을 담으면 거리가 늘어나고, 장애물에 닿거나 아이템을 놓치면 콤보가 리셋됩니다.
 - 적재량을 초과해 담으면 속도(콤보)만 초기화되고 아이템은 담깁니다(최소 1개 이상 담을 수 있도록 보장).
 - 게임 종료 후 ‘카트 업그레이드’를 누르면 다음 등급으로 상승합니다(저장은 로컬스토리지 사용).
+
+중복 파일 정리 사항
+- 과거 `The-Useless-Store/` 폴더의 중복본은 제거했습니다. 개발과 배포는 루트 기준 파일을 사용하세요.

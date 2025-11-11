@@ -27,13 +27,12 @@ Flask + SQLAlchemy 기반의 API입니다. Docker 없이 로컬에서 간단히 
    - 헬스체크: `curl http://localhost:8080/api/health`
 
 프런트 연결
-- 이미 `The-Useless-Store/index.html`에 `window.API_BASE = 'http://localhost:8080/api'`가 설정되어 있습니다.
+- 루트 `index.html`에 기본 `window.API_BASE = 'http://localhost:8080/api'`가 설정되어 있습니다.
 - 정적 서버로 띄우기(권장):
-  - `npx serve The-Useless-Store -l 5173`
-  - 브라우저에서 `http://localhost:5173`
+  - 루트에서 `python3 -m http.server 8000` → `http://localhost:8000`
+  - 또는 `npx serve . -l 5173` → `http://localhost:5173`
 - CORS 이슈가 있으면 `backend_sqlalchemy/.env`의 `CLIENT_ORIGIN`을 프런트 주소로 수정하세요.
 
 배포 힌트
 - SQLite 대신 Postgres를 사용하세요(`DATABASE_URL` 설정).
 - Flask는 WSGI 서버(gunicorn 등) 뒤에서 실행하고, 포트/도메인에 맞춰 `CLIENT_ORIGIN`을 설정하세요.
-

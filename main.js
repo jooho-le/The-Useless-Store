@@ -56,6 +56,8 @@
   const finalScoreEl = document.getElementById('finalScore');
   const speech = document.getElementById('speech');
   const dangerOverlay = document.getElementById('dangerOverlay');
+  const penaltyToast = document.getElementById('penaltyToast');
+  const penaltyTextEl = document.getElementById('penaltyText');
   const timerTextEl = document.getElementById('timerText');
   const timerLabelEl = document.querySelector('.timer-label');
   const memoModal = document.getElementById('memoModal');
@@ -402,6 +404,8 @@
     water_bundle: new ItemType('water_bundle', { score: 10, volume: 2, color: '#59a7ff', image: 'assets/images/water_bundle.png' }),
     water:        new ItemType('water',        { score: 8,  volume: 1, color: '#9060ff', image: 'assets/images/water.png' }),
   };
+  // 점수제 모듈에서 접근할 수 있도록 공개
+  window.__ITEM_TYPES__ = ITEM_TYPES;
 
   function randomItemType(){
     const keys = Object.keys(ITEM_TYPES);
@@ -704,45 +708,16 @@
     ensureShelfAhead();
     updateHUD();
     drawScene(0);
+    // 외부 모듈에서 현재 상태 접근 가능하도록 노출
+    window.__game_state__ = state;
   }
 
   function updateHUD() {
     scoreEl.textContent = String(state.score);
     comboEl.textContent = String(state.combo);
     capacityEl.textContent = `${state.capacity}`;
-    if (state.mode === 'mom') {
-      // 엄마 모드: 거리 게이지/경고 표시
-      timerLabelEl && timerLabelEl.classList.add('hidden');
-      gapLabelEl && gapLabelEl.classList.remove('hidden');
-      gameGaugeEl && gameGaugeEl.classList.remove('hidden');
-      const fillRatio = clamp((START_DISTANCE - state.momGap) / Math.max(START_DISTANCE, 0.0001), 0, 1);
-      if (gameGaugeFillEl) {
-        if (fillRatio <= 0) {
-          gameGaugeFillEl.classList.add('empty');
-          gameGaugeFillEl.style.width = '0%';
-        } else {
-          const pct = clamp(fillRatio, 0, 1) * 100;
-          gameGaugeFillEl.classList.remove('empty');
-          gameGaugeFillEl.style.width = `${pct.toFixed(1)}%`;
-        }
-      }
-      gapTextEl.textContent = String(Math.max(0, Math.ceil(state.momGap)));
-      const dangerAlpha = clamp(1 - (state.momGap / 2), 0, 1);
-      dangerOverlay.style.opacity = (dangerAlpha * 0.9).toFixed(2);
-      const inWarning = state.momGap <= WARNING_DISTANCE;
-      if (inWarning && !state.momWarningActive) playSound(sounds.momVoice);
-      state.momWarningActive = inWarning;
-      if (inWarning) speech.classList.remove('hidden');
-      else speech.classList.add('hidden');
-    } else {
-      // 점수제: 타이머만 표시, 경고/거리 게이지 숨김, 오버레이 끔
-      timerLabelEl && timerLabelEl.classList.remove('hidden');
-      gapLabelEl && gapLabelEl.classList.add('hidden');
-      gameGaugeEl && gameGaugeEl.classList.add('hidden');
-      timerTextEl && (timerTextEl.textContent = String(Math.max(0, Math.ceil(state.timeLeft))));
-      dangerOverlay.style.opacity = '0';
-      speech.classList.add('hidden');
-    }
+    const mode = window.ActiveMode;
+    if (mode && typeof mode.updateHUD === 'function') mode.updateHUD(state);
   }
 
   function setPersonImage(poseKey = 'center') {
@@ -801,6 +776,21 @@
     }, 320);
   }
 
+  function showPenaltyToast(text){
+    if (!penaltyToast) return;
+    if (penaltyTextEl && text) penaltyTextEl.textContent = text;
+    penaltyToast.classList.remove('hidden');
+    penaltyToast.classList.remove('show');
+    // force reflow to restart animation
+    // eslint-disable-next-line no-unused-expressions
+    void penaltyToast.offsetWidth;
+    penaltyToast.classList.add('show');
+    setTimeout(() => {
+      penaltyToast && penaltyToast.classList.add('hidden');
+      penaltyToast && penaltyToast.classList.remove('show');
+    }, 1500);
+  }
+
   function makeShelf(i){
     const items = [];
     // Left side 3 levels, Right side 3 levels
@@ -823,16 +813,10 @@
     const desiredSpeed = clamp(state.speedTarget, CAMERA_SPEED_MIN, CAMERA_SPEED_MAX);
     const lerpFactor = clamp(dt * 60 * CAMERA_SPEED_EASING, 0, 1);
     state.speedModifier = lerp(state.speedModifier, desiredSpeed, lerpFactor);
-    if (state.mode === 'mom') {
-      state.momGap -= MOM_BASE_SPEED * dt;
-      state.momGap = Math.max(MIN_DISTANCE - 0.0001, state.momGap);
-      updateHUD();
-      if (state.momGap <= MIN_DISTANCE) endGame();
-    } else {
-      state.timeLeft -= dt;
-      updateHUD();
-      if (state.timeLeft <= 0) endGame();
-    }
+    const mode = window.ActiveMode;
+    if (mode && typeof mode.update === 'function') mode.update(state, dt);
+    updateHUD();
+    if (mode && typeof mode.isOver === 'function' && mode.isOver(state)) endGame();
   }
 
   function drawScene(dt){
@@ -971,8 +955,20 @@
   }
 
   // Buttons (mode selection)
-  startMomBtn && startMomBtn.addEventListener('click', () => { initState('mom'); startGame(); });
-  startScoreBtn && startScoreBtn.addEventListener('click', () => { beginScoreModeFlow(); });
+  startMomBtn && startMomBtn.addEventListener('click', () => {
+    window.ActiveMode = window.MomMode || null;
+    const beginInit = (mode) => { initState(mode || 'mom'); window.__game_state__ = state; };
+    if (window.ActiveMode && typeof window.ActiveMode.begin === 'function') {
+      window.ActiveMode.begin(beginInit, startGame, ITEM_TYPES);
+    } else { beginInit('mom'); startGame(); }
+  });
+  startScoreBtn && startScoreBtn.addEventListener('click', () => {
+    window.ActiveMode = window.ScoreMode || null;
+    const beginInit = (mode) => { initState(mode || 'score'); window.__game_state__ = state; };
+    if (window.ActiveMode && typeof window.ActiveMode.begin === 'function') {
+      window.ActiveMode.begin(beginInit, startGame, ITEM_TYPES);
+    } else { beginInit('score'); startGame(); }
+  });
   retryBtn.addEventListener('click', retry);
   upgradeBtn.addEventListener('click', upgradeCart);
   resetTierBtn.addEventListener('click', () => { setTierIndex(0); initState(); });
@@ -1074,6 +1070,9 @@
       state.speedTarget = CAMERA_SPEED_BASE;
       const baseScore = -5;
       state.score += baseScore * (1 + Math.floor(state.combo/10));
+      if (state.mode === 'mom') {
+        showPenaltyToast('이 물건을 담기엔 내 장바구니가 너무 작아!');
+      }
       // too big: ignore pick (no collection)
     }
     else {
@@ -1083,18 +1082,16 @@
       const target = CAMERA_SPEED_BASE + volumeBoost * CAMERA_SPEED_VOLUME_FACTOR;
       state.speedTarget = clamp(target, CAMERA_SPEED_MIN, CAMERA_SPEED_MAX);
       const baseScore = picked.type.score || 10;
-      if (state.mode === 'score') {
-        // 점수제: 메모에 있는 아이템만 +1, 그 외 0점
-        const ok = state.targetsSet && state.targetsSet.has(picked.type.key);
-        if (ok) state.score += 1;
+      const active = window.ActiveMode;
+      if (active && typeof active.scoreForPick === 'function') {
+        state.score += active.scoreForPick(state, picked, baseScore);
       } else {
-        // 엄마 모드: 기존 점수 공식 유지
         state.score += baseScore * (1 + Math.floor(state.combo/10));
       }
       playSound(sounds.packing);
     }
-    if (state.mode === 'mom') {
-      state.momGap += 1; // 담을수록 엄마와의 거리 벌어짐(엄마 모드 전용)
+    if (window.ActiveMode && typeof window.ActiveMode.onPickAfter === 'function') {
+      window.ActiveMode.onPickAfter(state);
     }
 
     // Spawn next shelf(s) immediately at click to avoid waiting for tween end
@@ -1163,72 +1160,36 @@
       furnitureImagesReady = true;
       initState('mom');
       refreshUserUI();
-      playOpeningMusic();
+      if (!window.PREVIEW_MODE && !window.EMBED_MODE) {
+        playOpeningMusic();
+      }
       window.addEventListener('pointerdown', () => {
         if (!state || state.running) return;
-        if (sounds.opening && sounds.opening.paused) playOpeningMusic();
+        if (!window.PREVIEW_MODE && !window.EMBED_MODE && sounds.opening && sounds.opening.paused) playOpeningMusic();
       }, { once: true });
+      // 데모 모드에서 자동 시작(엄마 모드)
+      if (!window.PREVIEW_MODE && !window.EMBED_MODE && window.AUTO_START_MODE === 'mom' && typeof startMomBtn !== 'undefined' && startMomBtn) {
+        startMomBtn.click();
+      }
+      // 프리뷰 모드: 한 프레임만 그려진 정지 화면을 노출
+      if (window.PREVIEW_MODE) {
+        try {
+          startScreen && startScreen.classList.add('hidden');
+          startScreen && startScreen.classList.remove('visible');
+          characterLayer && characterLayer.classList.add('visible');
+          stopOpeningMusic();
+          drawScene(0);
+        } catch (_) {}
+      }
+      // 임베드 모드: 시작 전 장면을 유지(오버레이는 CSS로 숨김), 캐릭터 레이어는 보이게
+      if (window.EMBED_MODE) {
+        try {
+          characterLayer && characterLayer.classList.add('visible');
+          stopOpeningMusic();
+          drawScene(0);
+        } catch (_) {}
+      }
     });
   
-  // Score mode helpers
-  function beginScoreModeFlow(){
-    initState('score');
-    setupScoreTargets();
-    showMemoOverlay(10, () => {
-      startGame();
-    });
-  }
-
-  function setupScoreTargets(){
-    const keys = Object.keys(ITEM_TYPES);
-    const shuffled = keys.slice().sort(() => Math.random() - 0.5);
-    const targets = shuffled.slice(0, 4);
-    state.targets = targets;
-    state.targetsSet = new Set(targets);
-    if (memoList) {
-      memoList.innerHTML = '';
-      for (const k of targets) {
-        const it = ITEM_TYPES[k];
-        const label = k.replace(/_/g, ' ');
-        const li = document.createElement('li');
-        const img = it && it.imagePath ? `<img src="${it.imagePath}" alt="${label}" style="height:32px;margin-right:8px;vertical-align:middle;"/>` : '';
-        li.innerHTML = `${img}<span>${label}</span>`;
-        memoList.appendChild(li);
-      }
-    }
-  }
-
-  function showMemoOverlay(seconds, onDone){
-    let remain = Math.max(1, Math.floor(seconds));
-    if (memoCountdown) memoCountdown.textContent = String(remain);
-    if (memoModal) memoModal.classList.remove('hidden');
-    let timer = null;
-    const cleanup = () => {
-      if (memoModal) memoModal.classList.add('hidden');
-      if (timer) clearInterval(timer);
-      timer = null;
-      skipMemoBtn && skipMemoBtn.removeEventListener('click', onSkip);
-    };
-    const onSkip = () => { cleanup(); onDone && onDone(); };
-    const tick = () => {
-      remain -= 1;
-      if (memoCountdown) memoCountdown.textContent = String(Math.max(0, remain));
-      if (remain <= 0) {
-        cleanup();
-        onDone && onDone();
-      }
-    };
-    skipMemoBtn && skipMemoBtn.addEventListener('click', onSkip);
-    timer = setInterval(tick, 1000);
-  }
-
-  function scheduleNextScoreAdvance(delayMs){
-    if (!state || !state.running) return;
-    if (state.nextAdvanceTimer) clearTimeout(state.nextAdvanceTimer);
-    state.nextAdvanceTimer = setTimeout(() => {
-      if (!state || !state.running) return;
-      // 이동 속도를 완만하게 하여 선택 시간을 확보
-      tweenToNextShelf({ auto: true, speedMultiplier: 1.0 });
-    }, Math.max(0, delayMs|0));
-  }
+  // 점수제 모드 전용 로직은 modes/score_mode.js에 분리되었습니다.
 })();

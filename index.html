@@ -3,124 +3,97 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Useless Store Run</title>
+    <title>Useless Store Run - 모드 선택</title>
     <link rel="stylesheet" href="style.css" />
+    <style>
+      html, body { height: 100%; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; color:#fff; }
+      .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; position: relative; z-index: 4; }
+      .panel { width:min(720px, 92vw); padding:40px 28px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.35); }
+      h1 { margin:0 0 12px; font-size:28px; }
+      p.desc { margin:0 0 20px; color:#cfd3e0; }
+      .actions { display:flex; gap:12px; flex-wrap:wrap; }
+      .btn { appearance:none; border:none; padding:14px 18px; border-radius:10px; cursor:pointer; font-weight:700; font-size:16px; text-decoration:none; display:inline-block; }
+      .btn-primary { background:#5b8cff; color:#fff; }
+      .btn-ghost { background:transparent; color:#cfd3e0; border:1px solid rgba(255,255,255,0.2); }
+      .btn[disabled] { opacity:0.55; pointer-events:none; }
+      .tabs { display:flex; gap:10px; margin-bottom:14px; }
+      .tab { flex:0 0 auto; }
+      .tab .btn { background:rgba(255,255,255,0.06); color:#e8ecf6; border:1px solid rgba(255,255,255,0.18); }
+      .tab .btn.active { background:#5b8cff; color:#fff; border-color:transparent; }
+      .detail { margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.12); }
+      .detail h2 { margin:10px 0 8px; font-size:18px; }
+      .detail ul { margin:0 0 12px 18px; padding:0; color:#cfd3e0; }
+      .detail ul li { margin:3px 0; }
+      .hint { margin-top:16px; font-size:12px; color:#aab0c2; }
+
+      /* 정지 프리뷰: 실제 게임 레이아웃을 iframe으로 그려 스케일 차이 문제 제거 */
+      .stage { position: fixed; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+      .stage iframe { width: 100%; height: 100%; border: 0; }
+    </style>
   </head>
   <body>
-    <div id="app">
-      <header id="hud">
-        <div class="hud-left">
-          <div class="hud-item"><span>점수</span><strong id="score">0</strong></div>
-          <div class="hud-item"><span>콤보</span><strong id="combo">0</strong></div>
-          <div class="hud-item"><span>카트</span><strong id="cartTier">나무</strong></div>
-          <div class="hud-item"><span>적재</span><strong id="capacity">0</strong></div>
-        </div>
-        <div class="hud-right">
-          <div class="gap-label">엄마와 거리: <strong id="gapText">5</strong></div>
-          <div class="timer-label hidden">남은 시간: <strong id="timerText">60</strong>s</div>
-          <div class="auth-controls">
-            <span id="userEmail" class="muted"></span>
-            <button id="loginBtn" class="small">로그인</button>
-            <button id="logoutBtn" class="small hidden">로그아웃</button>
-            <button id="myScoreBtn" class="small">내 점수</button>
+    <!-- 엄마의 분노 모드와 동일한 캔버스 컨테이너(#game) + 오버레이 사용 -->
+    <div id="game">
+      <div class="overlay visible" id="modeScreen">
+        <div>
+          <h1>Useless Store Run</h1>
+          <p class="desc">원하는 모드를 먼저 선택하세요. 아래에 설명과 시작 버튼이 나타납니다.</p>
+          <div class="tabs">
+            <div class="tab"><button id="tabMom" class="btn">엄마의 분노</button></div>
+            <div class="tab"><button id="tabScore" class="btn">점수제</button></div>
           </div>
-        </div>
-      </header>
-
-      <div id="game" class="danger-0">
-        <canvas id="canvas" width="800" height="1020"></canvas>
-        <div id="lampLayer" class="lamp-layer">
-          <img src="assets/images/lamp.png" alt="" class="lamp" data-base-top="130" />
-          <img src="assets/images/lamp.png" alt="" class="lamp" data-base-top="230" />
-        </div>
-        <div class="character-layer">
-          <img src="assets/images/cart.png" alt="Cart" class="character cart" />
-          <img src="assets/images/person_front.png" alt="Person" class="character person" />
-        </div>
-        <div id="gameGauge" class="game-gauge">
-          <div class="gauge-layer gauge-blank">
-            <span class="segment left"></span>
-            <span class="segment mid"></span>
-            <span class="segment right"></span>
-          </div>
-          <div class="gauge-layer gauge-fill" id="gameGaugeFill">
-            <div class="gauge-fill-content">
-              <span class="segment left"></span>
-              <span class="segment mid"></span>
-              <span class="segment right"></span>
-            </div>
-          </div>
-        </div>
-        <div id="speech" class="hidden">
-          <div class="bubble">거기 서! 그거 당장 빼! 💢</div>
-        </div>
-        <div id="dangerOverlay"></div>
-        <div id="startScreen" class="overlay visible">
-          <h1>마트 질주</h1>
-          <p>엄마로부터 도망치며 비싼 물건을 카트에 담자!</p>
-          <ul class="instructions">
-            <li>물건을 눌러 카트에 담으세요</li>
-            <li>엄마에게 잡히지 마세요</li>
-          </ul>
-          <div class="actions" style="gap: 8px; display: flex; flex-wrap: wrap; justify-content: center;">
-            <button id="startMomBtn" class="accent">시작: 엄마의 분노</button>
-            <button id="startScoreBtn">시작: 점수제</button>
-          </div>
-          <button id="resetTierBtn" class="ghost">카트 리셋</button>
-        </div>
-
-        <div id="gameOver" class="overlay hidden">
-          <h2>잡혔다!</h2>
-          <p>점수: <strong id="finalScore">0</strong></p>
-          <div class="actions">
-            <button id="retryBtn">다시하기</button>
-            <button id="upgradeBtn" class="accent">카트 업그레이드</button>
-          </div>
-          <p class="small">업그레이드는 시각적 + 적재량 증가</p>
-        </div>
-
-        <div id="authModal" class="overlay hidden">
-          <h2>로그인 / 회원가입</h2>
-          <div class="form">
-            <input id="authName" placeholder="이름 (선택)" />
-            <input id="authEmail" placeholder="이메일" />
-            <input id="authPassword" placeholder="비밀번호" type="password" />
+          <div id="detail" class="detail" style="display:none;">
+            <h2 id="modeTitle">모드</h2>
+            <ul id="modeDesc"></ul>
             <div class="actions">
-              <button id="doLogin" class="accent">로그인</button>
-              <button id="doSignup">회원가입</button>
-              <button id="closeAuth" class="ghost">닫기</button>
+              <a id="startLink" class="btn btn-primary" href="#" disabled>게임 시작</a>
             </div>
-            <div id="authMsg" class="small muted"></div>
-          </div>
-        </div>
-
-        <div id="myScores" class="overlay hidden">
-          <h2>내 점수</h2>
-          <p>최고점: <strong id="bestScore">0</strong></p>
-          <ul id="recentScores" class="scores"></ul>
-          <div class="actions">
-            <button id="closeScores" class="ghost">닫기</button>
+            <p class="hint">점수 저장/랭킹</p>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- 점수제: 메모지 오버레이 -->
-    <div id="memoModal" class="overlay hidden">
-      <h2>메모지</h2>
-      <p class="small">아래 적힌 상품만 담으세요. 곧 시작합니다!</p>
-      <ul id="memoList" class="scores"></ul>
-      <p>시작까지 <strong id="memoCountdown">10</strong>초</p>
-      <div class="actions">
-        <button id="skipMemoBtn" class="ghost">바로 시작</button>
-      </div>
-    </div>
-
-    <script src="sprites.js"></script>
     <script>
-      // Point frontend API calls to backend server
-      window.API_BASE = 'http://localhost:8080/api';
+      const MODES = {
+        mom: {
+          title: '엄마의 분노',
+          url: 'mom.html',
+          desc: [
+            '엄마와의 거리 게이지가 0이 되기 전에 버텨라',
+            '아이템을 담아 점수/콤보를 올리고 거리를 벌리자',
+            '용량을 넘기면 콤보/속도 초기화 (페널티)'
+          ],
+        },
+        score: {
+          title: '점수제',
+          url: 'score.html',
+          desc: [
+            '시작 전 메모에 적힌 상품만 +1점',
+            '타이머가 0이 되면 종료, 총점으로 승부',
+            '게임 진행/조작은 기본 모드와 동일'
+          ],
+        }
+      };
+      const tabMom = document.getElementById('tabMom');
+      const tabScore = document.getElementById('tabScore');
+      const detail = document.getElementById('detail');
+      const title = document.getElementById('modeTitle');
+      const list = document.getElementById('modeDesc');
+      const startLink = document.getElementById('startLink');
+      function select(mode){
+        const m = MODES[mode];
+        if (!m) return;
+        tabMom.classList.toggle('active', mode==='mom');
+        tabScore.classList.toggle('active', mode==='score');
+        title.textContent = m.title;
+        list.innerHTML = '';
+        m.desc.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; list.appendChild(li); });
+        startLink.setAttribute('href', m.url);
+        startLink.removeAttribute('disabled');
+        detail.style.display = 'block';
+      }
+      tabMom.addEventListener('click', ()=>select('mom'));
+      tabScore.addEventListener('click', ()=>select('score'));
     </script>
-    <script src="main.js"></script>
   </body>
   </html>

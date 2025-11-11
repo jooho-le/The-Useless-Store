@@ -86,10 +86,14 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   border: 1px solid #222838;
+  /* 고정 종횡비로 시작화면과 플레이 화면의 비율을 일치 */
+  width: min(800px, 92vw);
+  aspect-ratio: 800 / 1020;
+  margin-left: auto; margin-right: auto;
 }
 
 canvas {
-  display: block; width: 100%; height: auto;
+  display: block; width: 100%; height: 100%;
   background: transparent;
   position: relative;
   z-index: 1;
@@ -189,6 +193,16 @@ canvas {
   position: relative; background: #1f2432; color: #ffdede; border: 1px solid #3a2a2a; padding: 8px 12px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);
 }
 .bubble::after { content: ""; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #1f2432; }
+
+/* Too-big item penalty toast (cloud style) */
+.penalty { position: absolute; left: 0; right: 0; bottom: 110px; display: flex; justify-content: center; pointer-events: none; z-index: 7; }
+.penalty.hidden { display: none; }
+.penalty .cloud { position: relative; background: rgba(255,255,255,0.95); color: #1a1d26; border-radius: 24px; padding: 14px 18px; box-shadow: 0 8px 26px rgba(0,0,0,0.35); max-width: 70vw; }
+.penalty .cloud::before, .penalty .cloud::after { content:""; position:absolute; bottom:-12px; left:50%; transform:translateX(-50%); width: 36px; height: 24px; background: rgba(255,255,255,0.95); border-radius: 50px; }
+.penalty .cloud::after { width:60px; height:32px; bottom:-18px; opacity:0.9; }
+.penalty p { margin:0; font-weight:700; font-size:16px; text-align:center; }
+.penalty.show { animation: penaltyFade 1500ms ease forwards; }
+@keyframes penaltyFade { 0%{ opacity:0; transform: translateY(10px);} 10%{opacity:1; transform:translateY(0);} 85%{opacity:1;} 100%{opacity:0; transform: translateY(-6px);} }
 
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
